@@ -56,7 +56,7 @@ public class GPDispatcherServlet extends HttpServlet {
         }
     }
 
-    private void doDispatch(HttpServletRequest req, HttpServletResponse resp) throws IOException, InvocationTargetException, IllegalAccessException {
+    private void doDispatch(HttpServletRequest req, HttpServletResponse resp) throws Exception {
         //根据用户请求的URL来获得一个Handler
         GPHandlerMapping handler = getHandler(req);
         if(handler == null) {
@@ -74,7 +74,7 @@ public class GPDispatcherServlet extends HttpServlet {
 
     }
 
-    private void processDispatchResult(HttpServletResponse resp, GPModelAndView mv) throws IOException {
+    private void processDispatchResult(HttpServletResponse resp, GPModelAndView mv) throws Exception {
         //调用viewResolver的resolverView方法
         if(null == mv) {return;}
 
