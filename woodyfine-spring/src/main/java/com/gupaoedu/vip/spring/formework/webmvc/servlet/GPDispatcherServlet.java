@@ -3,6 +3,7 @@ package com.gupaoedu.vip.spring.formework.webmvc.servlet;
 import com.gupaoedu.vip.spring.formework.annotation.GPController;
 import com.gupaoedu.vip.spring.formework.annotation.GPRequestMapping;
 import com.gupaoedu.vip.spring.formework.annotation.GPRequestParam;
+import com.gupaoedu.vip.spring.formework.aop.GPAopProxyUtils;
 import com.gupaoedu.vip.spring.formework.context.GPApplicationContext;
 import com.gupaoedu.vip.spring.formework.webmvc.GPHandlerAdapter;
 import com.gupaoedu.vip.spring.formework.webmvc.GPHandlerMapping;
@@ -166,7 +167,10 @@ public class GPDispatcherServlet extends HttpServlet {
         String[] beanNames = context.getBeanDefinitionNames();
         try {
             for (String beanName : beanNames) {
-                Object controller = context.getBean(beanName);
+                //到了MVC层，对外提供的方法只有一个getBean方法，返回的对象是aop代理对象
+                //需要获取原始对象，否则获取不到注解
+                Object proxy = context.getBean(beanName);
+                Object controller = GPAopProxyUtils.getTargetObject(proxy);
                 Class<?> clazz = controller.getClass();
                 if (!clazz.isAnnotationPresent(GPController.class)) {
                     continue;

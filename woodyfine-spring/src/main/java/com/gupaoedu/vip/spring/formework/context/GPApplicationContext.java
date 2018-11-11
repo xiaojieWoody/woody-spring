@@ -4,6 +4,7 @@ import com.gupaoedu.vip.spring.demo.action.MyAction;
 import com.gupaoedu.vip.spring.formework.annotation.GPAutowired;
 import com.gupaoedu.vip.spring.formework.annotation.GPController;
 import com.gupaoedu.vip.spring.formework.annotation.GPService;
+import com.gupaoedu.vip.spring.formework.aop.GPAopConfig;
 import com.gupaoedu.vip.spring.formework.beans.GPBeanDefinition;
 import com.gupaoedu.vip.spring.formework.beans.GPBeanPostProcessor;
 import com.gupaoedu.vip.spring.formework.beans.GPBeanWrapper;
@@ -11,11 +12,14 @@ import com.gupaoedu.vip.spring.formework.context.support.GPBeanDefinitionReader;
 import com.gupaoedu.vip.spring.formework.core.GPBeanFactory;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class GPApplicationContext extends GPDefaultListableBeanFactory implements GPBeanFactory {
 
@@ -50,7 +54,7 @@ public class GPApplicationContext extends GPDefaultListableBeanFactory implement
         doAutowired();
 
         //断点测试依赖是否注入
-        MyAction myAction = (MyAction)this.getBean("myAction");
+//        MyAction myAction = (MyAction)this.getBean("myAction");
         //myAction.query(null,null,"任性的Tom老师");
     }
 
@@ -131,8 +135,9 @@ public class GPApplicationContext extends GPDefaultListableBeanFactory implement
 
             //实例初始化之前调用一次
             beanPostProcessor.postProcessBeforeInitialization(instance, beanName);
-
             GPBeanWrapper beanWrapper = new GPBeanWrapper(instance);
+            //AOP
+            beanWrapper.setAopConfig(instantionAopConfig(beanDefinition));
             beanWrapper.setPostProcessor(beanPostProcessor);
             this.beanWrapperMap.put(beanName, beanWrapper);
 
@@ -143,11 +148,33 @@ public class GPApplicationContext extends GPDefaultListableBeanFactory implement
             return this.beanWrapperMap.get(beanName).getWrapperInstance();
 
         } catch (Exception e) {
-
+            e.printStackTrace();
         }
-
-
         return null;
+    }
+
+    private GPAopConfig instantionAopConfig(GPBeanDefinition beanDefinition) throws ClassNotFoundException, NoSuchMethodException, IllegalAccessException, InstantiationException {
+        GPAopConfig config = new GPAopConfig();
+        String expression = reader.getConfig().getProperty("pointCut");
+        String[] before = reader.getConfig().getProperty("aspectBefore").split("\\s");
+        String[] after = reader.getConfig().getProperty("aspectAfter").split("\\s");
+
+        String className = beanDefinition.getBeanClassName();
+        Class<?> clazz = Class.forName(className);
+
+        Pattern pattern = Pattern.compile(expression);
+        Class<?> aspectClass = Class.forName(before[0]);
+
+        //这里得到的方法都是原生方法
+        for(Method m : clazz.getMethods()) {
+            //public .* com\.gupaoedu\.vip\.spring\.demo\.service\..*Service\..*\(.*\)
+            //public java.lang.String com.gupaoedu.vip.spring.demo.service.impl.ModifyService.add(java.lang.String,java.lang.String)
+            Matcher matcher = pattern.matcher(m.toString());
+            if(matcher.matches()) {
+                config.put(m, aspectClass.newInstance(), new Method[]{aspectClass.getMethod(before[1]), aspectClass.getMethod(after[1])});
+            }
+        }
+        return config;
     }
 
     private Object instantionBean(GPBeanDefinition beanDefinition) {
